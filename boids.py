@@ -1,5 +1,38 @@
 import pygame
 import random
+import math
+
+class coord():
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    
+    def __add__(self, c):
+        return coord(self.x + c.x, self.y + c.y)
+    
+    def __sub__(self, c):
+        return coord(self.x - c.x, self.y - c.y)
+
+    def __floordiv__(self, num):
+        return coord(self.x//num, self.y//num)
+
+    def __truediv__(self, num):
+        return coord(self.x/num, self.y/num)
+
+    def __eq__(self, c):
+        return self.x == c.x and self.y == c.y
+
+    def __mul__(self, num):
+        return coord(self.x*num, self.y*num)
+
+    def t(self):
+        return (int(self.x), int(self.y))
+
+    def distance(self, c):
+        return math.sqrt((self.x - c.x)**2 + (self.y - c.y)**2)
+
+    def magnitude(self):
+        return math.sqrt(self.x**2 + self.y**2)
 
 class game_screen():
     def __init__(self, width, height, name):
@@ -13,33 +46,74 @@ class game_screen():
 class boids():
     def __init__(self, color, xpos, ypos, radius, xvel, yvel, surface):
         self.color = color
-        self.xpos = xpos
-        self.ypos = ypos
-        self.pos = xpos, ypos
+        self.pos = coord(xpos, ypos)
         self.radius = radius
-        self.xvel = xvel
-        self.yvel = yvel
+        self.vel = coord(xvel, yvel)
         self.surface = surface
 
     def draw_boid(self):
-        pygame.draw.circle(self.surface.screen, self.color, self.pos, self.radius)
+        pygame.draw.circle(self.surface.screen, self.color, self.pos.t(), self.radius)
 
-    def move(self):
-        keys = pygame.key.get_pressed()
+    #related to the center of mass of the flock
+    def rule1(self, flock):
+        center = coord(0, 0)
+        for boid in flock:
+            if boid != self: 
+                center += boid.pos
+        center = center/(len(flock) - 1)
+        v1 = (center - self.pos)/50
+        return v1
+
+    #related to the distance to other boids
+    def rule2(self, flock):
+        v2 = coord(0, 0)
+        for boid in flock:
+            if boid != self:
+                if (boid.pos - self.pos).magnitude() < 10:
+                    v2 = v2 - (boid.pos - self.pos)
+        return v2
+
+
+    #related to average speed
+    def rule3(self, flock):
+        av = coord(0,0)
+        for boid in flock:
+            if boid != self:
+                av += boid.vel
+        av = av/(len(flock) - 1)
+        v3 = (av - self.vel)/20
+        return v3
+
+    def speed_limit(self):
+        vlim = 10
+
+        speed = self.vel.magnitude()
+        if speed > vlim:
+            self.vel = (self.vel/speed) * vlim
+
+    def move(self, flock):
+        v1 = self.rule1(flock)
+        v2 = self.rule2(flock)
+        v3 = self.rule3(flock)
+        self.vel += v1
+
+        self.speed_limit()
+        self.pos += self.vel
         
-        self.xpos += self.xvel
-        self.ypos += self.yvel
-        self.pos = self.xpos, self.ypos
-        if self.xpos < 0 or self.xpos  > self.surface.width: 
-            self.xvel = -self.xvel
-        if self.ypos < 0 or self.ypos > self.surface.height:
-            self.yvel = -self.yvel
-    
+        if self.pos.x < 0: 
+            self.vel.x = 10
+        elif self.pos.x > self.surface.width:
+            self.vel.x = -10
+        if self.pos.y < 0:
+            self.vel.y = 10
+        elif self.pos.y > self.surface.height:
+            self.vel.y = -10         
+
 class boids_list():
     def __init__(self, numBoids, screen):
         self.list =[]
-        xvel = 5
-        yvel = 5
+        xvel = random.randint(0, 6)
+        yvel = random.randint(0, 6)
         radius = 5
 
         for i in range(numBoids):
@@ -53,7 +127,7 @@ class boids_list():
 
     def move_boids(self):
         for boid in self.list:
-            boid.move()
+            boid.move(self.list)
 
 def main():
     pygame.init()
@@ -61,8 +135,9 @@ def main():
     
     pygame.display.set_caption("boid simulation")
 
-    flock = boids_list(10, screen)
-    frameTime = 10
+    clock = pygame.time.Clock()
+    flock = boids_list(100, screen)
+    frameTime = 60
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -72,7 +147,7 @@ def main():
         flock.draw_boids()
         flock.move_boids()
         pygame.display.update()
-        pygame.time.delay(frameTime)
+        clock.tick(frameTime)
 
 if __name__ == "__main__":
     main()
