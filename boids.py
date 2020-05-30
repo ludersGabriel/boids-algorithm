@@ -44,6 +44,11 @@ class game_screen():
         pygame.display.set_caption(name)
 
 class boids():
+    turnFactor = 0.5
+    margin = 100
+    fov = 75
+    minDistance = 20
+
     def __init__(self, color, xpos, ypos, radius, xvel, yvel, surface):
         self.color = color
         self.pos = coord(xpos, ypos)
@@ -57,32 +62,50 @@ class boids():
     #related to the center of mass of the flock
     def rule1(self, flock):
         center = coord(0, 0)
+        centeringFactor = 0.008
+        numNeighbors = 0
+
         for boid in flock:
-            if boid != self: 
-                center += boid.pos
-        center = center/(len(flock) - 1)
-        v1 = (center - self.pos)/50
-        return v1
+            if boid != self:
+                if self.pos.distance(boid.pos) < self.fov: 
+                    center += boid.pos
+                    numNeighbors +=1
+        if numNeighbors:
+            center = center/numNeighbors
+            v1 = center - self.pos
+            return v1 * centeringFactor
+        else:
+            return coord(0, 0)
 
     #related to the distance to other boids
     def rule2(self, flock):
         v2 = coord(0, 0)
+        avoidFactor = 0.05
+
         for boid in flock:
             if boid != self:
-                if (boid.pos - self.pos).magnitude() < 10:
+                if self.pos.distance(boid.pos) < self.minDistance:
                     v2 = v2 - (boid.pos - self.pos)
-        return v2
+        return v2 * avoidFactor
 
 
     #related to average speed
     def rule3(self, flock):
         av = coord(0,0)
+        matchingFactor = 0.05
+        numNeighbors = 0
+
         for boid in flock:
             if boid != self:
-                av += boid.vel
-        av = av/(len(flock) - 1)
-        v3 = (av - self.vel)/20
-        return v3
+                if self.pos.distance(boid.pos) < self.fov:
+                    av += boid.vel
+                    numNeighbors += 1
+        if numNeighbors:
+            av = av/numNeighbors
+            v3 = av - self.vel
+            return v3 * matchingFactor
+        else:
+            return coord(0, 0)
 
     def speed_limit(self):
         vlim = 10
@@ -91,35 +114,45 @@ class boids():
         if speed > vlim:
             self.vel = (self.vel/speed) * vlim
 
+
+    def control_boundaries(self):
+            if self.pos.x < self.margin: 
+                self.vel.x += self.turnFactor
+            elif self.pos.x > self.surface.width - self.margin:
+                self.vel.x -= self.turnFactor
+            if self.pos.y < self.margin:
+                self.vel.y += self.turnFactor
+            elif self.pos.y > self.surface.height - self.margin:
+                self.vel.y -= self.turnFactor
+
     def move(self, flock):
         v1 = self.rule1(flock)
         v2 = self.rule2(flock)
         v3 = self.rule3(flock)
-        self.vel += v1
-
+        self.vel += v1 + v2 + v3
         self.speed_limit()
-        self.pos += self.vel
+        self.control_boundaries()
         
-        if self.pos.x < 0: 
-            self.vel.x = 10
-        elif self.pos.x > self.surface.width:
-            self.vel.x = -10
-        if self.pos.y < 0:
-            self.vel.y = 10
-        elif self.pos.y > self.surface.height:
-            self.vel.y = -10         
+        self.pos += self.vel
+              
 
 class boids_list():
     def __init__(self, numBoids, screen):
         self.list =[]
-        xvel = random.randint(0, 6)
-        yvel = random.randint(0, 6)
         radius = 5
 
         for i in range(numBoids):
+
+            r = random.randint(120, 200)
+            b = random.randint(0, 255)
+            g = random.randint(0, 24)
+
+            xvel = random.randint(-2, 3)
+            yvel = random.randint(-2, 3)
             xpos = random.randint(0, screen.width + 1)
             ypos = random.randint(0, screen.height + 1)
-            self.list.append(boids((200, 23, 255), xpos, ypos, radius, xvel, yvel, screen))
+            vel = coord(xpos, ypos) 
+            self.list.append(boids((r, g, b), xpos, ypos, radius, xvel, yvel, screen))
 
     def draw_boids(self):
         for boid in self.list:
@@ -131,12 +164,12 @@ class boids_list():
 
 def main():
     pygame.init()
-    screen = game_screen(1600, 900, "boid simulation")
+    screen = game_screen(1700, 1000, "boid simulation")
     
     pygame.display.set_caption("boid simulation")
 
     clock = pygame.time.Clock()
-    flock = boids_list(100, screen)
+    flock = boids_list(75, screen)
     frameTime = 60
     while True:
         for event in pygame.event.get():
