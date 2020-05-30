@@ -44,7 +44,7 @@ class game_screen():
         pygame.display.set_caption(name)
 
 class boids():
-    turnFactor = 0.5
+    turnFactor = 1
     margin = 100
     fov = 75
     minDistance = 20
@@ -62,7 +62,7 @@ class boids():
     #related to the center of mass of the flock
     def rule1(self, flock):
         center = coord(0, 0)
-        centeringFactor = 0.008
+        centeringFactor = 0.005
         numNeighbors = 0
 
         for boid in flock:
@@ -135,7 +135,6 @@ class boids():
         
         self.pos += self.vel
               
-
 class boids_list():
     def __init__(self, numBoids, screen):
         self.list =[]
@@ -147,8 +146,8 @@ class boids_list():
             b = random.randint(0, 255)
             g = random.randint(0, 24)
 
-            xvel = random.randint(-2, 3)
-            yvel = random.randint(-2, 3)
+            xvel = random.randint(-3, 2) + 1
+            yvel = random.randint(-3, 2) + 1
             xpos = random.randint(0, screen.width + 1)
             ypos = random.randint(0, screen.height + 1)
             vel = coord(xpos, ypos) 
@@ -169,7 +168,7 @@ def main():
     pygame.display.set_caption("boid simulation")
 
     clock = pygame.time.Clock()
-    flock = boids_list(75, screen)
+    flock = boids_list(100, screen)
     frameTime = 60
     while True:
         for event in pygame.event.get():
